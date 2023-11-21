@@ -8,8 +8,6 @@ services:
     command: npm run start:debug
     ports:
       - 8080:8080
-    networks:
-      - nesjs-network
     volumes:
       - .:/usr/src/app
       - /usr/src/app/node_modules

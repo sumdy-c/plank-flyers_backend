@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -8,4 +5,271 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model console_user {
+  create_time  DateTime @default(now()) @db.Timestamptz(6)
+  disable_time DateTime @default(dbgenerated("'1970-01-01 00:00:00+00'::timestamp with time zone")) @db.Timestamptz(6)
+  email        String   @unique(map: "console_user_email_uniq") @db.VarChar(255)
+  id           String   @id @db.Uuid
+  metadata     Json     @default("{}")
+  password     Bytes?
+  role         Int      @default(4) @db.SmallInt
+  update_time  DateTime @default(now()) @db.Timestamptz(6)
+  username     String   @unique(map: "console_user_username_uniq") @db.VarChar(128)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model group_edge {
+  source_id      String   @db.Uuid
+  position       BigInt
+  update_time    DateTime @default(now()) @db.Timestamptz(6)
+  destination_id String   @db.Uuid
+  state          Int      @default(0) @db.SmallInt
+
+  @@id([source_id, state, position])
+  @@unique([source_id, destination_id])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model groups {
+  id           String   @unique @db.Uuid
+  creator_id   String   @db.Uuid
+  name         String   @unique @db.VarChar(255)
+  description  String?  @db.VarChar(255)
+  avatar_url   String?  @db.VarChar(512)
+  lang_tag     String   @default("en") @db.VarChar(18)
+  metadata     Json     @default("{}")
+  state        Int      @default(0) @db.SmallInt
+  edge_count   Int      @default(0)
+  max_count    Int      @default(100)
+  create_time  DateTime @default(now()) @db.Timestamptz(6)
+  update_time  DateTime @default(now()) @db.Timestamptz(6)
+  disable_time DateTime @default(dbgenerated("'1970-01-01 00:00:00+00'::timestamp with time zone")) @db.Timestamptz(6)
+
+  @@id([disable_time, lang_tag, edge_count, id])
+  @@index([disable_time, edge_count, update_time, id], map: "edge_count_update_time_id_idx")
+  @@index([disable_time, update_time, edge_count, id], map: "update_time_edge_count_id_idx")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model leaderboard {
+  id                 String               @id @db.VarChar(128)
+  authoritative      Boolean              @default(false)
+  sort_order         Int                  @default(1) @db.SmallInt
+  operator           Int                  @default(0) @db.SmallInt
+  reset_schedule     String?              @db.VarChar(64)
+  metadata           Json                 @default("{}")
+  create_time        DateTime             @default(now()) @db.Timestamptz(6)
+  category           Int                  @default(0) @db.SmallInt
+  description        String               @default("") @db.VarChar(255)
+  duration           Int                  @default(0)
+  end_time           DateTime             @default(dbgenerated("'1970-01-01 00:00:00+00'::timestamp with time zone")) @db.Timestamptz(6)
+  join_required      Boolean              @default(false)
+  max_size           Int                  @default(100000000)
+  max_num_score      Int                  @default(1000000)
+  title              String               @default("") @db.VarChar(255)
+  size               Int                  @default(0)
+  start_time         DateTime             @default(now()) @db.Timestamptz(6)
+  leaderboard_record leaderboard_record[]
+
+  @@index([duration, start_time, end_time(sort: Desc), category], map: "duration_start_time_end_time_category_idx")
+  @@index([create_time, id])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model leaderboard_record {
+  leaderboard_id String      @db.VarChar(128)
+  owner_id       String      @db.Uuid
+  username       String?     @db.VarChar(128)
+  score          BigInt      @default(0)
+  subscore       BigInt      @default(0)
+  num_score      Int         @default(1)
+  metadata       Json        @default("{}")
+  create_time    DateTime    @default(now()) @db.Timestamptz(6)
+  update_time    DateTime    @default(now()) @db.Timestamptz(6)
+  expiry_time    DateTime    @default(dbgenerated("'1970-01-01 00:00:00+00'::timestamp with time zone")) @db.Timestamptz(6)
+  max_num_score  Int         @default(1000000)
+  leaderboard    leaderboard @relation(fields: [leaderboard_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([leaderboard_id, expiry_time, score, subscore, owner_id])
+  @@unique([owner_id, leaderboard_id, expiry_time])
+  @@index([owner_id, expiry_time, leaderboard_id], map: "owner_id_expiry_time_leaderboard_id_idx")
+}
+
+model message {
+  id                String   @unique @db.Uuid
+  code              Int      @default(0) @db.SmallInt
+  sender_id         String   @db.Uuid
+  username          String   @db.VarChar(128)
+  stream_mode       Int      @db.SmallInt
+  stream_subject    String   @db.Uuid
+  stream_descriptor String   @db.Uuid
+  stream_label      String   @db.VarChar(128)
+  content           Json     @default("{}")
+  create_time       DateTime @default(now()) @db.Timestamptz(6)
+  update_time       DateTime @default(now()) @db.Timestamptz(6)
+  users             users    @relation(fields: [sender_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([stream_mode, stream_subject, stream_descriptor, stream_label, create_time, id])
+  @@unique([sender_id, id])
+}
+
+model migration_info {
+  id         String    @id
+  applied_at DateTime? @db.Timestamptz(6)
+}
+
+model notification {
+  id          String   @unique @db.Uuid
+  user_id     String   @db.Uuid
+  subject     String   @db.VarChar(255)
+  content     Json     @default("{}")
+  code        Int      @db.SmallInt
+  sender_id   String   @db.Uuid
+  create_time DateTime @default(now()) @db.Timestamptz(6)
+  users       users    @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([user_id, create_time, id])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model purchase {
+  create_time    DateTime @default(now()) @db.Timestamptz(6)
+  environment    Int      @default(0) @db.SmallInt
+  product_id     String   @db.VarChar(512)
+  purchase_time  DateTime @default(now()) @db.Timestamptz(6)
+  raw_response   Json     @default("{}")
+  store          Int      @default(0) @db.SmallInt
+  transaction_id String   @id @db.VarChar(512)
+  update_time    DateTime @default(now()) @db.Timestamptz(6)
+  user_id        String   @default(dbgenerated("'00000000-0000-0000-0000-000000000000'::uuid")) @db.Uuid
+  refund_time    DateTime @default(dbgenerated("'1970-01-01 00:00:00+00'::timestamp with time zone")) @db.Timestamptz(6)
+  users          users    @relation(fields: [user_id], references: [id], onDelete: SetDefault, onUpdate: NoAction)
+
+  @@index([user_id, purchase_time(sort: Desc), transaction_id])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model storage {
+  collection  String   @db.VarChar(128)
+  key         String   @db.VarChar(128)
+  user_id     String   @db.Uuid
+  value       Json     @default("{}")
+  version     String   @db.VarChar(32)
+  read        Int      @default(1) @db.SmallInt
+  write       Int      @default(1) @db.SmallInt
+  create_time DateTime @default(now()) @db.Timestamptz(6)
+  update_time DateTime @default(now()) @db.Timestamptz(6)
+  users       users    @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([collection, key, user_id])
+  @@index([collection, read, key, user_id], map: "collection_read_key_user_id_idx")
+  @@index([collection, read, user_id, key], map: "collection_read_user_id_key_idx")
+  @@index([collection, user_id, read, key], map: "collection_user_id_read_key_idx")
+  @@index([user_id], map: "storage_auto_index_fk_user_id_ref_users")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model subscription {
+  original_transaction_id String   @id @db.VarChar(512)
+  create_time             DateTime @default(now()) @db.Timestamptz(6)
+  update_time             DateTime @default(now()) @db.Timestamptz(6)
+  environment             Int      @default(0) @db.SmallInt
+  product_id              String   @db.VarChar(512)
+  purchase_time           DateTime @default(now()) @db.Timestamptz(6)
+  store                   Int      @default(0) @db.SmallInt
+  user_id                 String   @default(dbgenerated("'00000000-0000-0000-0000-000000000000'::uuid")) @db.Uuid
+  expire_time             DateTime @db.Timestamptz(6)
+  raw_response            Json     @default("{}")
+  raw_notification        Json     @default("{}")
+  refund_time             DateTime @default(dbgenerated("'1970-01-01 00:00:00+00'::timestamp with time zone")) @db.Timestamptz(6)
+  users                   users    @relation(fields: [user_id], references: [id], onDelete: SetDefault, onUpdate: NoAction)
+
+  @@index([user_id, purchase_time(sort: Desc), original_transaction_id], map: "subscription_user_id_purchase_time_transaction_id_idx")
+}
+
+model user_device {
+  id                 String @id @db.VarChar(128)
+  user_id            String @db.Uuid
+  preferences        Json   @default("{}")
+  push_token_amazon  String @default("") @db.VarChar(512)
+  push_token_android String @default("") @db.VarChar(512)
+  push_token_huawei  String @default("") @db.VarChar(512)
+  push_token_ios     String @default("") @db.VarChar(512)
+  push_token_web     String @default("") @db.VarChar(512)
+  users              users  @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([user_id, id])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model user_edge {
+  source_id                             String   @db.Uuid
+  position                              BigInt
+  update_time                           DateTime @default(now()) @db.Timestamptz(6)
+  destination_id                        String   @db.Uuid
+  state                                 Int      @default(0) @db.SmallInt
+  users_user_edge_destination_idTousers users    @relation("user_edge_destination_idTousers", fields: [destination_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  users_user_edge_source_idTousers      users    @relation("user_edge_source_idTousers", fields: [source_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([source_id, state, position])
+  @@unique([source_id, destination_id])
+  @@index([destination_id], map: "user_edge_auto_index_fk_destination_id_ref_users")
+}
+
+model user_tombstone {
+  user_id     String   @unique @db.Uuid
+  create_time DateTime @default(now()) @db.Timestamptz(6)
+
+  @@id([create_time, user_id])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model users {
+  id                                        String          @id @db.Uuid
+  username                                  String          @unique @db.VarChar(128)
+  display_name                              String?         @db.VarChar(255)
+  avatar_url                                String?         @db.VarChar(512)
+  lang_tag                                  String          @default("en") @db.VarChar(18)
+  location                                  String?         @db.VarChar(255)
+  timezone                                  String?         @db.VarChar(255)
+  metadata                                  Json            @default("{}")
+  wallet                                    Json            @default("{}")
+  email                                     String?         @unique @db.VarChar(255)
+  password                                  Bytes?
+  facebook_id                               String?         @unique @db.VarChar(128)
+  google_id                                 String?         @unique @db.VarChar(128)
+  gamecenter_id                             String?         @unique @db.VarChar(128)
+  steam_id                                  String?         @unique @db.VarChar(128)
+  custom_id                                 String?         @unique @db.VarChar(128)
+  edge_count                                Int             @default(0)
+  create_time                               DateTime        @default(now()) @db.Timestamptz(6)
+  update_time                               DateTime        @default(now()) @db.Timestamptz(6)
+  verify_time                               DateTime        @default(dbgenerated("'1970-01-01 00:00:00+00'::timestamp with time zone")) @db.Timestamptz(6)
+  disable_time                              DateTime        @default(dbgenerated("'1970-01-01 00:00:00+00'::timestamp with time zone")) @db.Timestamptz(6)
+  facebook_instant_game_id                  String?         @unique @db.VarChar(128)
+  apple_id                                  String?         @unique @db.VarChar(128)
+  message                                   message[]
+  notification                              notification[]
+  purchase                                  purchase[]
+  storage                                   storage[]
+  subscription                              subscription[]
+  user_device                               user_device[]
+  user_edge_user_edge_destination_idTousers user_edge[]     @relation("user_edge_destination_idTousers")
+  user_edge_user_edge_source_idTousers      user_edge[]     @relation("user_edge_source_idTousers")
+  wallet_ledger                             wallet_ledger[]
+}
+
+model wallet_ledger {
+  id          String   @unique @db.Uuid
+  user_id     String   @db.Uuid
+  changeset   Json
+  metadata    Json
+  create_time DateTime @default(now()) @db.Timestamptz(6)
+  update_time DateTime @default(now()) @db.Timestamptz(6)
+  users       users    @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([user_id, create_time, id])
 }
