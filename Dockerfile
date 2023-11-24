@@ -14,6 +14,8 @@ RUN npx prisma generate
 
 RUN npm run build
 
+RUN npx prima generate
+
 FROM node:20.9.0-alpine3.18 as production
 
 ARG NODE_ENV=production

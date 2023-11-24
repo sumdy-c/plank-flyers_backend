@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
+import { Logger } from '@nestjs/common';
+
 // import { Client } from '@heroiclabs/nakama-js';
-// import { PrismaClient } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 
 export interface Movie {
   id: number;
@@ -10,13 +12,6 @@ export interface Movie {
 
 @Injectable()
 export class AppService {
-  // prisma = new PrismaClient();
-
-  async main() {
-    // const allUsers = await this.prisma.users.findMany();
-    // console.log(allUsers);
-  }
-
   private movies: Movie[] = [
     { id: 1, name: 'Star Wars: The Force Awakens', year: 2015 },
     { id: 2, name: 'Star Wars: The Last Jedi', year: 2017 },
@@ -24,16 +19,14 @@ export class AppService {
   ];
 
   getMovies(): Movie[] {
-    // this.main()
-    //   .then(async () => {
-    //     await this.prisma.$disconnect();
-    //   })
-    //   .catch(async (e) => {
-    //     console.error(e);
-    //     await this.prisma.$disconnect();
-    //     process.exit(1);
-    //   });
+    // const prisma = new PrismaClient();
+    const prisma = new PrismaClient();
+    const fn = async () => {
+      const users = await prisma.users.findMany();
+      Logger.log(users);
+    };
 
+    fn();
     return this.movies;
   }
 }
