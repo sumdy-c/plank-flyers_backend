@@ -10,6 +10,8 @@ RUN npm install
 
 COPY . .
 
+RUN npx prisma generate
+
 RUN npm run build
 
 FROM node:20.9.0-alpine3.18 as production
